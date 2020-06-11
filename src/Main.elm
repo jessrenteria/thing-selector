@@ -9,6 +9,8 @@ import Element.Input as Input
 import Random
 import Random.List
 import Url
+import Url.Parser as Parser exposing ((</>), (<?>))
+import Url.Parser.Query as Query
 
 
 
@@ -41,7 +43,29 @@ type alias Model =
 
 init : () -> Url.Url -> Nav.Key -> ( Model, Cmd Msg )
 init flags url key =
-    ( Model key url Nothing "", Cmd.none )
+    case Parser.parse urlParser url of
+        Nothing ->
+            ( Model key url Nothing "", Cmd.none )
+
+        Just things ->
+            ( Model key url Nothing (String.join "\n" things), Cmd.none )
+
+
+urlParser : Parser.Parser (List String -> a) a
+urlParser =
+    Parser.oneOf
+        -- GitHub Pages
+        [ Parser.s "thing-selector"
+
+        -- Local deployment
+        , Parser.s "src" </> Parser.s "Main.elm"
+        ]
+        <?> thingParser
+
+
+thingParser : Query.Parser (List String)
+thingParser =
+    Query.custom "thing" identity
 
 
 
@@ -75,7 +99,7 @@ update msg model =
         SelectThing ->
             ( model
             , Random.generate NewThing <|
-                Random.map Tuple.first (Random.List.choose <| String.split "\n" model.content)
+                Random.map Tuple.first (Random.List.choose <| processThings model.content)
             )
 
         NewThing thing ->
@@ -87,6 +111,11 @@ update msg model =
             ( { model | content = content }
             , Cmd.none
             )
+
+
+processThings : String -> List String
+processThings content =
+    content |> String.lines |> List.filter (not << String.isEmpty)
 
 
 
