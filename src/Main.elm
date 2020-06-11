@@ -36,7 +36,7 @@ main =
 type alias Model =
     { key : Nav.Key
     , url : Url.Url
-    , thing : Maybe String
+    , selection : Maybe String
     , content : String
     }
 
@@ -76,7 +76,8 @@ type Msg
     = LinkClicked Browser.UrlRequest
     | UrlChanged Url.Url
     | SelectThing
-    | NewThing (Maybe String)
+    | Shuffle
+    | NewSelection (Maybe String)
     | ChangeContent String
 
 
@@ -98,12 +99,22 @@ update msg model =
 
         SelectThing ->
             ( model
-            , Random.generate NewThing <|
-                Random.map Tuple.first (Random.List.choose <| processThings model.content)
+            , processThings model.content
+                |> Random.List.choose
+                |> Random.map Tuple.first
+                |> Random.generate NewSelection
             )
 
-        NewThing thing ->
-            ( { model | thing = thing }
+        Shuffle ->
+            ( model
+            , processThings model.content
+                |> Random.List.shuffle
+                |> Random.map (Just << String.join "\n")
+                |> Random.generate NewSelection
+            )
+
+        NewSelection selection ->
+            ( { model | selection = selection }
             , Cmd.none
             )
 
@@ -179,13 +190,18 @@ view model =
                     [ Input.multiline [ width fill, Font.color black ]
                         { onChange = ChangeContent
                         , text = model.content
-                        , placeholder = Just <| Input.placeholder [] <| text "Things to select, one thing per line."
+                        , placeholder =
+                            Just <|
+                                Input.placeholder [] <|
+                                    text "Things to select, one thing per line."
                         , label = Input.labelHidden "Things"
                         , spellcheck = False
                         }
-                    , el [ width fill, Font.italic ] <| text <| Maybe.withDefault "" model.thing
+                    , el [ width fill, Font.italic ] <|
+                        text <|
+                            Maybe.withDefault "" model.selection
                     ]
-                , row [ width fill, height <| fillPortion 1 ]
+                , row [ width fill, height <| fillPortion 1, spacing 10 ]
                     [ Input.button
                         [ width fill
                         , height fill
@@ -194,6 +210,15 @@ view model =
                         ]
                         { onPress = Just SelectThing
                         , label = text "Select"
+                        }
+                    , Input.button
+                        [ width fill
+                        , height fill
+                        , Background.color blue
+                        , mouseOver [ Background.color purple ]
+                        ]
+                        { onPress = Just Shuffle
+                        , label = text "Shuffle"
                         }
                     ]
                 ]
