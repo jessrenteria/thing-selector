@@ -36,6 +36,7 @@ main =
 type alias Model =
     { key : Nav.Key
     , url : Url.Url
+    , thingType : String
     , selection : Maybe String
     , content : String
     }
@@ -45,27 +46,44 @@ init : () -> Url.Url -> Nav.Key -> ( Model, Cmd Msg )
 init flags url key =
     case Parser.parse urlParser url of
         Nothing ->
-            ( Model key url Nothing "", Cmd.none )
+            ( { key = key
+              , url = url
+              , thingType = "Thing"
+              , selection = Nothing
+              , content = ""
+              }
+            , Cmd.none
+            )
 
-        Just things ->
-            ( Model key url Nothing (String.join "\n" things), Cmd.none )
+        Just urlParams ->
+            ( { key = key
+              , url = url
+              , thingType = Maybe.withDefault "Thing" urlParams.thingType
+              , selection = Nothing
+              , content = String.join "\n" urlParams.things
+              }
+            , Cmd.none
+            )
 
 
-urlParser : Parser.Parser (List String -> a) a
+type alias UrlParams =
+    { thingType : Maybe String
+    , things : List String
+    }
+
+
+urlParser : Parser.Parser (UrlParams -> a) a
 urlParser =
-    Parser.oneOf
-        -- GitHub Pages
-        [ Parser.s "thing-selector"
+    Parser.map UrlParams <|
+        Parser.oneOf
+            -- GitHub Pages
+            [ Parser.s "thing-selector"
 
-        -- Local deployment
-        , Parser.s "src" </> Parser.s "Main.elm"
-        ]
-        <?> thingParser
-
-
-thingParser : Query.Parser (List String)
-thingParser =
-    Query.custom "thing" identity
+            -- Local deployment
+            , Parser.s "src" </> Parser.s "Main.elm"
+            ]
+            <?> Query.string "thingType"
+            <?> Query.custom "thing" identity
 
 
 
@@ -164,7 +182,7 @@ purple =
 
 view : Model -> Browser.Document Msg
 view model =
-    { title = "Thing Selector"
+    { title = model.thingType ++ " Selector"
     , body =
         [ layout
             [ Background.color black
@@ -183,7 +201,7 @@ view model =
           <|
             column [ width fill, height fill ]
                 [ row [ width fill, height <| fillPortion 1 ]
-                    [ el [ width fill ] <| text "Things"
+                    [ el [ width fill ] <| text <| model.thingType ++ " Pool"
                     , el [ width fill ] <| text "Selection"
                     ]
                 , row [ width fill, height <| fillPortion 3 ]
@@ -193,8 +211,8 @@ view model =
                         , placeholder =
                             Just <|
                                 Input.placeholder [] <|
-                                    text "Things to select, one thing per line."
-                        , label = Input.labelHidden "Things"
+                                    text "Possibilities, one per line."
+                        , label = Input.labelHidden <| model.thingType ++ " Pool"
                         , spellcheck = False
                         }
                     , el [ width fill, Font.italic ] <|
