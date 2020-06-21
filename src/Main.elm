@@ -43,7 +43,7 @@ type alias Model =
 
 
 init : () -> Url.Url -> Nav.Key -> ( Model, Cmd Msg )
-init flags url key =
+init _ url key =
     case Parser.parse urlParser url of
         Nothing ->
             ( { key = key
